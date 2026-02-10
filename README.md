@@ -78,7 +78,7 @@ ai-chatbot/
 ├── .gitignore         # Files to ignore in git
 ├── step6.py           # Main chatbot (command line)
 ├── groq_chatbot.py    # Streamlit version (web interface)
-├── chat_log.txt       # Conversation history
+├── chat_log.txt       # Conversation history  "Note: chat_log.txt is generated locally and is ignored by Git to keep the repository clean."
 └── README.md          # This file
 ```
 
