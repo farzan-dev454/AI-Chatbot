@@ -2,16 +2,21 @@ import streamlit as st
 import requests
 import os
 import datetime
+import json
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+if not GROQ_API_KEY:
+    st.error("GROQ_API_KEY not found in .env file. Please set it and restart.")
+    st.stop()
+
 # Groq API endpoint
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-def chat(user_message):
+def chat(user_message,memory):
     """Send message to Groq and get response"""
     
     headers = {
@@ -21,11 +26,11 @@ def chat(user_message):
     
     payload = {
         "model": "llama-3.1-8b-instant",  # Fast and free model
-        "messages": [
+        "messages": memory + [
             {"role": "user", "content": user_message}
         ],
-        "temperature": 0.7,
-        "max_tokens": 1024
+        "temperature": 0.9,
+        "max_tokens": 800
     }
     
     try:
@@ -54,6 +59,12 @@ with st.sidebar:
     # Button to clear history
     if st.button("🗑️ Clear History"):
         st.session_state.messages = []
+        if os.path.exists("history_bot.json"):
+            try:
+                with open("history_bot.json", "d") as file:
+                    file.write("[]")  # Clear the file content
+            except Exception as e:
+                st.error(f"Failed to delete history file: {e}")
         st.rerun()
     
     # Button to download history
@@ -93,7 +104,15 @@ with st.sidebar:
 
 # Initialize chat history
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    if os.path.exists("history_bot.json"):
+        try:
+            with open("history_bot.json", "r") as file:
+                st.session_state.messages = json.load(file)
+        except Exception as e:
+            st.error(f"Failed to load history: {e}")
+            st.session_state.messages = []
+    else:
+        st.session_state.messages = []
 
 # Initialize history view state
 if "show_history" not in st.session_state:
@@ -133,11 +152,18 @@ if prompt := st.chat_input("Type your message here..."):
     with st.chat_message("user"):
         st.write(prompt)
     
-    # Get bot response
+    # Get bot response (now passing the full message history as memory)
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            response = chat(prompt)
+            response = chat(prompt, st.session_state.messages)
             st.write(response)
     
     # Add assistant response to chat history
     st.session_state.messages.append({"role": "assistant", "content": response})
+    
+    # Save updated history to file (overwrite each time for valid JSON)
+    try:
+        with open("history_bot.json", "w") as file:
+            json.dump(st.session_state.messages, file)
+    except Exception as e:
+        st.error(f"Failed to save history: {e}")
